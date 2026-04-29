@@ -1,0 +1,61 @@
+name: OpenWrt-ARM64容器编译
+on:
+  workflow_dispatch:
+
+env:
+  OPENWRT_BRANCH: openwrt-23.05
+  TARGET_PATH: armvirt/64
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 安装编译依赖
+        run: |
+          sudo apt update -y
+          sudo apt install -y build-essential libssl-dev libncurses5-dev libncursesw5-dev \
+          zlib1g-dev gawk git gettext xsltproc wget unzip python3 file
+
+      - name: 拉取自己仓库配置
+        uses: actions/checkout@v4
+        path: mycfg
+
+      - name: 拉取OpenWrt官方源码
+        uses: actions/checkout@v4
+        with:
+          repository: openwrt/openwrt
+          ref: ${{ env.OPENWRT_BRANCH }}
+          path: openwrt
+
+      - name: 导入独立feeds配置
+        working-directory: ./openwrt
+        run: |
+          cp ../mycfg/feeds.conf feeds.conf.default
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: 导入独立固件配置
+        working-directory: ./openwrt
+        run: |
+          cp ../mycfg/config/.config .config
+          make defconfig
+
+      - name: 下载编译依赖
+        working-directory: ./openwrt
+        run: make download -j$(nproc)
+
+      - name: 编译固件
+        working-directory: ./openwrt
+        run: make -j$(nproc)
+
+      - name: 导出容器根文件系统
+        working-directory: ./openwrt
+        run: |
+          cp bin/targets/${{ env.TARGET_PATH }}/rootfs.tar.gz ./OpenWrt-ARM64-Docker.tar.gz
+
+      - name: 上传成品
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenWrt-ARM64-Docker根文件系统
+          path: openwrt/OpenWrt-ARM64-Docker.tar.gz
+          retention-days: 30
