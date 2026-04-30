@@ -5,7 +5,8 @@ on:
 env:
   OPENWRT_VERSION: 23.05.5
   TARGET_PATH: armvirt/64
-  OFFICIAL_ROOTFS_URL: https://downloads.openwrt.org/releases/23.05.5/targets/armvirt/64/openwrt-23.05.5-armvirt-64-default-rootfs.tar.gz
+  # 改用中科大镜像，解决404问题
+  OFFICIAL_ROOTFS_URL: https://mirrors.ustc.edu.cn/openwrt/releases/23.05.5/targets/armvirt/64/openwrt-23.05.5-armvirt-64-default-rootfs.tar.gz
 
 jobs:
   build:
@@ -16,7 +17,7 @@ jobs:
         with:
           path: mycfg
 
-      - name: 下载官方OpenWrt根文件系统
+      - name: 下载官方OpenWrt根文件系统（中科大镜像）
         run: |
           wget -O openwrt-rootfs.tar.gz ${{ env.OFFICIAL_ROOTFS_URL }}
 
@@ -25,10 +26,17 @@ jobs:
           mkdir -p rootfs
           tar -xzf openwrt-rootfs.tar.gz -C rootfs/
           
-          # 1. 配置软件源
-          cp mycfg/feeds.conf rootfs/etc/opkg/distfeeds.conf
+          # 配置软件源为中科大镜像
+          cat > rootfs/etc/opkg/distfeeds.conf <<EOF
+src/gz openwrt_core https://mirrors.ustc.edu.cn/openwrt/releases/23.05.5/targets/armvirt/64/packages
+src/gz openwrt_base https://mirrors.ustc.edu.cn/openwrt/releases/23.05.5/packages/aarch64_generic/base
+src/gz openwrt_luci https://mirrors.ustc.edu.cn/openwrt/releases/23.05.5/packages/aarch64_generic/luci
+src/gz openwrt_packages https://mirrors.ustc.edu.cn/openwrt/releases/23.05.5/packages/aarch64_generic/packages
+src/gz openwrt_routing https://mirrors.ustc.edu.cn/openwrt/releases/23.05.5/packages/aarch64_generic/routing
+src/gz openwrt_telephony https://mirrors.ustc.edu.cn/openwrt/releases/23.05.5/packages/aarch64_generic/telephony
+EOF
           
-          # 2. 预装所有依赖包（直接写入文件系统）
+          # 预装所有依赖包
           chroot rootfs /bin/sh -c "opkg update && opkg install -y \
             luci-app-minidlna minidlna \
             igmpproxy kmod-br-netfilter \
