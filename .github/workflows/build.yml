@@ -2,16 +2,6 @@ name: OpenWrt SDK Build
 on:
   workflow_dispatch:
 
-env:
-  OW_VER: 23.05.5
-  OW_TGT: armvirt
-  OW_SUB: 64
-  SDK_NAME: openwrt-sdk-${{ env.OW_VER }}-${{ env.OW_TGT }}-${{ env.OW_SUB }}_gcc-12.3.0_musl.Linux-x86_64.tar.xz
-  SDK_URL: https://downloads.openwrt.org/releases/${{ env.OW_VER }}/targets/${{ env.OW_TGT }}/${{ env.OW_SUB }}
-  BUILD_DIR: ./build_workspace
-  LOCAL_FEEDS: feeds.conf
-  LOCAL_CONFIG: .config
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -26,40 +16,40 @@ jobs:
 
       - name: Download & Extract SDK
         run: |
-          mkdir -p ${{ env.BUILD_DIR }}
-          cd ${{ env.BUILD_DIR }}
-          wget -q ${{ env.SDK_URL }}/${{ env.SDK_NAME }}
-          tar -xf ${{ env.SDK_NAME }}
+          mkdir -p ./build_workspace
+          cd ./build_workspace
+          wget -q https://downloads.openwrt.org/releases/23.05.5/targets/armvirt/64/openwrt-sdk-23.05.5-armvirt-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+          tar -xf openwrt-sdk-*.tar.xz
           mv openwrt-sdk-* sdk
 
       - name: Load External feeds.conf
         run: |
-          cd ${{ env.BUILD_DIR }}/sdk
-          cp ${{ github.workspace }}/${{ env.LOCAL_FEEDS }} feeds.conf.default
+          cd ./build_workspace/sdk
+          cp ${{ github.workspace }}/feeds.conf feeds.conf.default
 
       - name: Load External .config
         run: |
-          cd ${{ env.BUILD_DIR }}/sdk
-          cp ${{ github.workspace }}/${{ env.LOCAL_CONFIG }} .config
+          cd ./build_workspace/sdk
+          cp ${{ github.workspace }}/.config .config
 
       - name: Update & Install Feeds
         run: |
-          cd ${{ env.BUILD_DIR }}/sdk
+          cd ./build_workspace/sdk
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
       - name: Compile OpenWrt
         run: |
-          cd ${{ env.BUILD_DIR }}/sdk
+          cd ./build_workspace/sdk
           make defconfig
           make -j$(nproc)
 
       - name: Collect Rootfs
         run: |
-          cp ${{ env.BUILD_DIR }}/sdk/bin/targets/${{ env.OW_TGT }}/${{ env.OW_SUB }}/openwrt-*-rootfs.tar.gz ${{ env.BUILD_DIR }}/
+          cp ./build_workspace/sdk/bin/targets/armvirt/64/openwrt-*-rootfs.tar.gz ./build_workspace/
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: OpenWrt-Full-Rootfs
-          path: ${{ env.BUILD_DIR }}/*.tar.gz
+          path: ./build_workspace/*.tar.gz
