@@ -4,7 +4,6 @@ on:
 
 jobs:
   build:
-    # 强制使用 Ubuntu 22.04，避免 24.04 的包废弃问题
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Repo
@@ -17,11 +16,12 @@ jobs:
             build-essential libssl-dev git wget curl file \
             python3 python3-distutils rsync unzip
 
-      - name: Download & Extract SDK
+      - name: Download & Extract SDK (中科大镜像源)
         run: |
           mkdir -p ./build_workspace
           cd ./build_workspace
-          wget -q https://downloads.openwrt.org/releases/23.05.5/targets/armvirt/64/openwrt-sdk-23.05.5-armvirt-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+          # 换成稳定的中科大镜像地址
+          wget -q https://mirrors.ustc.edu.cn/openwrt/releases/23.05.5/targets/armvirt/64/openwrt-sdk-23.05.5-armvirt-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz
           tar -xf openwrt-sdk-*.tar.xz
           mv openwrt-sdk-* sdk
 
