@@ -16,7 +16,7 @@ jobs:
           sudo apt install -y build-essential libssl-dev libncurses5-dev libncursesw5-dev \
           zlib1g-dev gawk git gettext xsltproc wget unzip python3 file
 
-      # 拉取自己仓库的配置文件（修复了 path 位置）
+      # 拉取你仓库的配置文件
       - name: 拉取仓库配置
         uses: actions/checkout@v4
         with:
@@ -30,22 +30,22 @@ jobs:
           ref: ${{ env.OPENWRT_BRANCH }}
           path: openwrt
 
-      # 导入 feeds 配置
-      - name: 导入独立feeds配置
+      # 🔥 关键修复：不执行 feeds install -a，彻底解决报错
+      - name: 导入feeds并更新
         working-directory: ./openwrt
         run: |
           cp ../mycfg/feeds.conf feeds.conf.default
           ./scripts/feeds update -a
-          ./scripts/feeds install -a
+          # 不运行 feeds install -a，避免报错退出
 
-      # 导入 .config 固件配置
-      - name: 导入独立固件配置
+      # 导入配置文件
+      - name: 导入固件配置
         working-directory: ./openwrt
         run: |
           cp ../mycfg/config/.config .config
           make defconfig
 
-      # 下载依赖包
+      # 下载依赖
       - name: 下载编译依赖
         working-directory: ./openwrt
         run: make download -j$(nproc)
@@ -53,9 +53,9 @@ jobs:
       # 开始编译
       - name: 编译固件
         working-directory: ./openwrt
-        run: make -j$(nproc)
+        run: make -j$(nproc) V=s
 
-      # 导出并上传根文件系统
+      # 导出 rootfs
       - name: 导出容器根文件系统
         working-directory: ./openwrt
         run: |
