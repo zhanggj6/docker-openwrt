@@ -1,4 +1,4 @@
-name: 制作OpenWrt-ARM64-Docker根文件系统
+name: OpenWrt-ARM64-Docker
 on:
   workflow_dispatch
 
@@ -7,12 +7,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # 1. 下载官方 OpenWrt 根文件系统（中科大镜像，解决404）
-      - name: 下载 OpenWrt 官方根文件系统
+      - name: openWrt 
         run: |
           wget -O openwrt-rootfs.tar.gz https://mirrors.ustc.edu.cn/openwrt/releases/23.05.5/targets/armvirt/64/openwrt-23.05.5-armvirt-64-default-rootfs.tar.gz
 
       # 2. 解压并配置（只改配置，不安装任何包，避开chroot坑）
-      - name: 解压并修改配置
+      - name: jypz
         run: |
           mkdir -p rootfs
           tar -xzf openwrt-rootfs.tar.gz -C rootfs/
@@ -40,16 +40,16 @@ EOF
           chmod +x rootfs/etc/rc.local
 
       # 3. 重新打包成 Docker 用的根文件系统
-      - name: 重新打包根文件系统
+      - name: ffr
         run: |
           cd rootfs
           tar -czf ../OpenWrt-ARM64-Docker.tar.gz .
           cd ..
 
       # 4. 上传成品，方便下载
-      - name: 上传构建产物
+      - name: sg
         uses: actions/upload-artifact@v4
         with:
-          name: OpenWrt-ARM64-Docker根文件系统
+          name: OpenWrt-ARM64-Docker
           path: OpenWrt-ARM64-Docker.tar.gz
           retention-days: 30
