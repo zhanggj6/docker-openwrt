@@ -9,22 +9,22 @@ env:
   SDK_NAME: openwrt-sdk-${{ env.OW_VER }}-${{ env.OW_TGT }}-${{ env.OW_SUB }}_gcc-12.3.0_musl.Linux-x86_64.tar.xz
   SDK_URL: https://downloads.openwrt.org/releases/${{ env.OW_VER }}/targets/${{ env.OW_TGT }}/${{ env.OW_SUB }}
   BUILD_DIR: ./build_workspace
-  # 直接读仓库根目录 .config
+  LOCAL_FEEDS: feeds.conf
   LOCAL_CONFIG: .config
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout 仓库代码
+      - name: Checkout Repo
         uses: actions/checkout@v4
 
-      - name: 安装编译依赖
+      - name: Install Build Deps
         run: |
           sudo apt update -y
           sudo apt install -y build-essential libssl-dev git wget curl file python3-distutils
 
-      - name: 下载解压 SDK
+      - name: Download & Extract SDK
         run: |
           mkdir -p ${{ env.BUILD_DIR }}
           cd ${{ env.BUILD_DIR }}
@@ -32,28 +32,33 @@ jobs:
           tar -xf ${{ env.SDK_NAME }}
           mv openwrt-sdk-* sdk
 
-      - name: 载入根目录独立配置
+      - name: Load External feeds.conf
+        run: |
+          cd ${{ env.BUILD_DIR }}/sdk
+          cp ${{ github.workspace }}/${{ env.LOCAL_FEEDS }} feeds.conf.default
+
+      - name: Load External .config
         run: |
           cd ${{ env.BUILD_DIR }}/sdk
           cp ${{ github.workspace }}/${{ env.LOCAL_CONFIG }} .config
 
-      - name: 更新 feeds
+      - name: Update & Install Feeds
         run: |
           cd ${{ env.BUILD_DIR }}/sdk
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: 编译
+      - name: Compile OpenWrt
         run: |
           cd ${{ env.BUILD_DIR }}/sdk
           make defconfig
           make -j$(nproc)
 
-      - name: 归集 rootfs
+      - name: Collect Rootfs
         run: |
           cp ${{ env.BUILD_DIR }}/sdk/bin/targets/${{ env.OW_TGT }}/${{ env.OW_SUB }}/openwrt-*-rootfs.tar.gz ${{ env.BUILD_DIR }}/
 
-      - name: 上传成品
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: OpenWrt-Full-Rootfs
