@@ -1,69 +1,50 @@
-name: OpenWrt-ARM64容器编译
+name: 制作OpenWrt-ARM64-Docker根文件系统
 on:
   workflow_dispatch:
 
 env:
-  OPENWRT_BRANCH: openwrt-23.05
+  OPENWRT_VERSION: 23.05.5
   TARGET_PATH: armvirt/64
+  OFFICIAL_ROOTFS_URL: https://downloads.openwrt.org/releases/23.05.5/targets/armvirt/64/openwrt-23.05.5-armvirt-64-default-rootfs.tar.gz
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: 安装编译依赖
-        run: |
-          sudo apt update -y
-          sudo apt install -y build-essential libssl-dev libncurses5-dev libncursesw5-dev \
-          zlib1g-dev gawk git gettext xsltproc wget unzip python3 file
-
-      # 拉取你仓库的配置文件
       - name: 拉取仓库配置
         uses: actions/checkout@v4
         with:
           path: mycfg
 
-      # 拉取 OpenWrt 官方源码
-      - name: 拉取OpenWrt官方源码
-        uses: actions/checkout@v4
-        with:
-          repository: openwrt/openwrt
-          ref: ${{ env.OPENWRT_BRANCH }}
-          path: openwrt
-
-      # 🔥 关键修复：不执行 feeds install -a，彻底解决报错
-      - name: 导入feeds并更新
-        working-directory: ./openwrt
+      - name: 下载官方OpenWrt根文件系统
         run: |
-          cp ../mycfg/feeds.conf feeds.conf.default
-          ./scripts/feeds update -a
-          # 不运行 feeds install -a，避免报错退出
+          wget -O openwrt-rootfs.tar.gz ${{ env.OFFICIAL_ROOTFS_URL }}
 
-      # 导入配置文件
-      - name: 导入固件配置
-        working-directory: ./openwrt
+      - name: 解压并修改根文件系统（预装依赖）
         run: |
-          cp ../mycfg/config/.config .config
-          make defconfig
+          mkdir -p rootfs
+          tar -xzf openwrt-rootfs.tar.gz -C rootfs/
+          
+          # 1. 配置软件源
+          cp mycfg/feeds.conf rootfs/etc/opkg/distfeeds.conf
+          
+          # 2. 预装所有依赖包（直接写入文件系统）
+          chroot rootfs /bin/sh -c "opkg update && opkg install -y \
+            luci-app-minidlna minidlna \
+            igmpproxy kmod-br-netfilter \
+            dnsmasq-full dnsmasq kmod-tun iptables-mod-tproxy ipset coreutils coreutils-nohup \
+            curl wget openssl unzip \
+            kmod-macvlan kmod-veth bridge-utils ip-full"
 
-      # 下载依赖
-      - name: 下载编译依赖
-        working-directory: ./openwrt
-        run: make download -j$(nproc)
-
-      # 开始编译
-      - name: 编译固件
-        working-directory: ./openwrt
-        run: make -j$(nproc) V=s
-
-      # 导出 rootfs
-      - name: 导出容器根文件系统
-        working-directory: ./openwrt
+      - name: 重新打包根文件系统
         run: |
-          cp bin/targets/${{ env.TARGET_PATH }}/rootfs.tar.gz ./OpenWrt-ARM64-Docker.tar.gz
+          cd rootfs
+          tar -czf ../OpenWrt-ARM64-Docker.tar.gz .
+          cd ..
 
       - name: 上传成品
         uses: actions/upload-artifact@v4
         with:
           name: OpenWrt-ARM64-Docker根文件系统
-          path: openwrt/OpenWrt-ARM64-Docker.tar.gz
+          path: OpenWrt-ARM64-Docker.tar.gz
           retention-days: 30
