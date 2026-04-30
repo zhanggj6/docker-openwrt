@@ -1,17 +1,60 @@
-name: 导出OpenWrt官方rootfs
+name: OpenWrt SDK Build
 on:
   workflow_dispatch:
+
+env:
+  OW_VER: 23.05.5
+  OW_TGT: armvirt
+  OW_SUB: 64
+  SDK_NAME: openwrt-sdk-${{ env.OW_VER }}-${{ env.OW_TGT }}-${{ env.OW_SUB }}_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+  SDK_URL: https://downloads.openwrt.org/releases/${{ env.OW_VER }}/targets/${{ env.OW_TGT }}/${{ env.OW_SUB }}
+  BUILD_DIR: ./build_workspace
+  # 直接读仓库根目录 .config
+  LOCAL_CONFIG: .config
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: 下载官方rootfs（纯curl，无额外参数）
+      - name: Checkout 仓库代码
+        uses: actions/checkout@v4
+
+      - name: 安装编译依赖
         run: |
-          curl -L -o OpenWrt-ARM64-Docker.tar.gz https://github.com/openwrt/openwrt/releases/download/v23.05.5/openwrt-23.05.5-armvirt-64-default-rootfs.tar.gz
+          sudo apt update -y
+          sudo apt install -y build-essential libssl-dev git wget curl file python3-distutils
+
+      - name: 下载解压 SDK
+        run: |
+          mkdir -p ${{ env.BUILD_DIR }}
+          cd ${{ env.BUILD_DIR }}
+          wget -q ${{ env.SDK_URL }}/${{ env.SDK_NAME }}
+          tar -xf ${{ env.SDK_NAME }}
+          mv openwrt-sdk-* sdk
+
+      - name: 载入根目录独立配置
+        run: |
+          cd ${{ env.BUILD_DIR }}/sdk
+          cp ${{ github.workspace }}/${{ env.LOCAL_CONFIG }} .config
+
+      - name: 更新 feeds
+        run: |
+          cd ${{ env.BUILD_DIR }}/sdk
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: 编译
+        run: |
+          cd ${{ env.BUILD_DIR }}/sdk
+          make defconfig
+          make -j$(nproc)
+
+      - name: 归集 rootfs
+        run: |
+          cp ${{ env.BUILD_DIR }}/sdk/bin/targets/${{ env.OW_TGT }}/${{ env.OW_SUB }}/openwrt-*-rootfs.tar.gz ${{ env.BUILD_DIR }}/
 
       - name: 上传成品
         uses: actions/upload-artifact@v4
         with:
-          name: OpenWrt-ARM64-Docker
-          path: OpenWrt-ARM64-Docker.tar.gz
+          name: OpenWrt-Full-Rootfs
+          path: ${{ env.BUILD_DIR }}/*.tar.gz
