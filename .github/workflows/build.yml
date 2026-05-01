@@ -1,4 +1,4 @@
-name: OpenWrt Build
+name: OpenWrt Build (归档地址版)
 on:
   workflow_dispatch:
 
@@ -14,9 +14,9 @@ jobs:
           sudo apt update -y
           sudo apt install -y build-essential libssl-dev git wget curl file python3 python3-distutils rsync unzip
 
-      - name: Download SDK
+      - name: Download SDK (归档目录有效地址)
         run: |
-          wget https://mirrors.tuna.tsinghua.edu.cn/openwrt/releases/23.05.5/targets/armvirt/64/openwrt-sdk-23.05.5-armvirt-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+          wget https://downloads.openwrt.org/archive/releases/23.05.5/targets/armvirt/64/openwrt-sdk-23.05.5-armvirt-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz
           tar -xf openwrt-sdk-*.tar.xz
           mv openwrt-sdk-23.05.5-armvirt-64_gcc-12.3.0_musl.Linux-x86_64 openwrt-sdk
           cd openwrt-sdk
