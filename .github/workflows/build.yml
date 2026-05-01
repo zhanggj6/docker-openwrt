@@ -1,4 +1,4 @@
-name: OpenWrt SDK Build
+name: Build OpenWrt
 on:
   workflow_dispatch:
 
@@ -6,53 +6,33 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout Repo
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Build Deps
+      - name: Install dependencies
         run: |
-          sudo apt update -y
-          sudo apt install -y \
-            build-essential libssl-dev git wget curl file \
-            python3 python3-distutils rsync unzip
+          sudo apt update
+          sudo apt install -y build-essential libssl-dev git wget curl file python3 python3-distutils rsync unzip
 
-      - name: Download & Extract SDK (中科大镜像源)
+      - name: Download OpenWrt SDK
         run: |
-          mkdir -p ./build_workspace
-          cd ./build_workspace
-          # 换成稳定的中科大镜像地址
-          wget -q https://mirrors.ustc.edu.cn/openwrt/releases/23.05.5/targets/armvirt/64/openwrt-sdk-23.05.5-armvirt-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+          wget -q https://downloads.openwrt.org/releases/23.05.5/targets/armvirt/64/openwrt-sdk-23.05.5-armvirt-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz
           tar -xf openwrt-sdk-*.tar.xz
-          mv openwrt-sdk-* sdk
+          mv openwrt-sdk-* openwrt-sdk
+          cd openwrt-sdk
+          cp $GITHUB_WORKSPACE/feeds.conf feeds.conf.default
+          cp $GITHUB_WORKSPACE/.config .config
 
-      - name: Load External feeds.conf
+      - name: Update feeds and compile
         run: |
-          cd ./build_workspace/sdk
-          cp ${{ github.workspace }}/feeds.conf feeds.conf.default
-
-      - name: Load External .config
-        run: |
-          cd ./build_workspace/sdk
-          cp ${{ github.workspace }}/.config .config
-
-      - name: Update & Install Feeds
-        run: |
-          cd ./build_workspace/sdk
+          cd openwrt-sdk
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-
-      - name: Compile OpenWrt
-        run: |
-          cd ./build_workspace/sdk
           make defconfig
           make -j$(nproc)
 
-      - name: Collect Rootfs
-        run: |
-          cp ./build_workspace/sdk/bin/targets/armvirt/64/openwrt-*-rootfs.tar.gz ./build_workspace/
-
-      - name: Upload Artifact
+      - name: Upload rootfs
         uses: actions/upload-artifact@v4
         with:
-          name: OpenWrt-Full-Rootfs
-          path: ./build_workspace/*.tar.gz
+          name: openwrt-rootfs
+          path: openwrt-sdk/bin/targets/armvirt/64/openwrt-*-rootfs.tar.gz
