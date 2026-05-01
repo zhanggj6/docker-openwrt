@@ -1,4 +1,4 @@
-name: Build OpenWrt
+name: OpenWrt Build
 on:
   workflow_dispatch:
 
@@ -9,34 +9,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
-          sudo apt update
-          sudo apt install -y build-essential libssl-dev git curl python3
+          sudo apt update -y
+          sudo apt install -y build-essential libssl-dev git wget curl file python3 python3-distutils rsync unzip
 
       - name: Download SDK
         run: |
-          wget https://downloads.openwrt.org/releases/23.05.5/targets/armvirt/64/openwrt-sdk-23.05.5-armvirt-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz
-          tar xf openwrt-sdk-*.tar.xz
-          mv openwrt-sdk-* sdk
-          cd sdk
+          wget https://mirrors.tuna.tsinghua.edu.cn/openwrt/releases/23.05.5/targets/armvirt/64/openwrt-sdk-23.05.5-armvirt-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+          tar -xf openwrt-sdk-*.tar.xz
+          mv openwrt-sdk-23.05.5-armvirt-64_gcc-12.3.0_musl.Linux-x86_64 openwrt-sdk
+          cd openwrt-sdk
           cp $GITHUB_WORKSPACE/feeds.conf feeds.conf.default
           cp $GITHUB_WORKSPACE/.config .config
 
-      - name: Update feeds
+      - name: Feeds Update & Install
         run: |
-          cd sdk
+          cd openwrt-sdk
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Build
+      - name: Compile
         run: |
-          cd sdk
+          cd openwrt-sdk
           make defconfig
-          make -j4
+          make -j2
 
-      - name: Upload
+      - name: Upload Rootfs
         uses: actions/upload-artifact@v4
         with:
-          name: rootfs
-          path: sdk/bin/targets/armvirt/64/*.tar.gz
+          name: rootfs-output
+          path: openwrt-sdk/bin/targets/armvirt/64/*.tar.gz
