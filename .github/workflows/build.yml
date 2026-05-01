@@ -1,38 +1,33 @@
-name: Build OpenWrt
+name: Build OpenWrt (Docker Image)
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+    container:
+      # 用一个现成的、预装了 OpenWrt 编译环境的镜像
+      image: openwrtorg/sdk:23.05.5-armvirt-64
+      options: --privileged
+
     steps:
-      - name: Checkout code
+      - name: Checkout Repo
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Load Config & Feeds
         run: |
-          sudo apt update
-          sudo apt install -y build-essential libssl-dev git wget curl file python3 python3-distutils rsync unzip
-
-      - name: Download OpenWrt SDK
-        run: |
-          wget -q https://downloads.openwrt.org/releases/23.05.5/targets/armvirt/64/openwrt-sdk-23.05.5-armvirt-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz
-          tar -xf openwrt-sdk-*.tar.xz
-          mv openwrt-sdk-* openwrt-sdk
-          cd openwrt-sdk
           cp $GITHUB_WORKSPACE/feeds.conf feeds.conf.default
           cp $GITHUB_WORKSPACE/.config .config
 
-      - name: Update feeds and compile
+      - name: Update Feeds & Compile
         run: |
-          cd openwrt-sdk
           ./scripts/feeds update -a
           ./scripts/feeds install -a
           make defconfig
           make -j$(nproc)
 
-      - name: Upload rootfs
+      - name: Upload Rootfs
         uses: actions/upload-artifact@v4
         with:
-          name: openwrt-rootfs
-          path: openwrt-sdk/bin/targets/armvirt/64/openwrt-*-rootfs.tar.gz
+          name: OpenWrt-Full-Rootfs
+          path: bin/targets/armvirt/64/openwrt-*-rootfs.tar.gz
